@@ -1,0 +1,340 @@
+-- ============================================
+-- ESP + AIMBOT для Roblox
+-- Работает на Delta X, KRNL, Synapse
+-- ============================================
+
+local player = game.Players.LocalPlayer
+local camera = game.Workspace.CurrentCamera
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+local players = game.Players
+
+-- ============================================
+-- НАСТРОЙКИ (меняй под себя)
+-- ============================================
+local settings = {
+    espEnabled = true,
+    aimbotEnabled = true,
+    aimbotKey = Enum.KeyCode.RightShift,  -- Кнопка активации Aimbot
+    espColor = Color3.fromRGB(0, 255, 0),  -- Зеленый
+    teamColor = Color3.fromRGB(255, 255, 0), -- Желтый для союзников
+    maxDistance = 200, -- Максимальная дистанция для ESP
+    espBox = true,
+    espName = true,
+    espHealth = true,
+    espDistance = true,
+    smoothness = 0.3, -- Плавность наведения (0-1, где 0 = мгновенно)
+    fovRadius = 200,  -- Радиус FOV для aimbot
+}
+
+-- ============================================
+-- СОЗДАНИЕ GUI ЭЛЕМЕНТОВ
+-- ============================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ESP_GUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player.PlayerGui
+
+-- Панель управления
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 300)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 30)
+titleLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+titleLabel.Text = "ESP + AIMBOT"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Parent = mainFrame
+
+-- Кнопка закрытия
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -30, 0, 0)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextScaled = true
+closeBtn.Parent = mainFrame
+closeBtn.MouseButton1Click:Connect(function()
+    screenGui.Enabled = false
+end)
+
+-- Кнопки переключения
+local espBtn = Instance.new("TextButton")
+espBtn.Size = UDim2.new(1, -10, 0, 30)
+espBtn.Position = UDim2.new(0, 5, 0, 35)
+espBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+espBtn.Text = "ESP: ON"
+espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+espBtn.TextScaled = true
+espBtn.Parent = mainFrame
+espBtn.MouseButton1Click:Connect(function()
+    settings.espEnabled = not settings.espEnabled
+    espBtn.Text = settings.espEnabled and "ESP: ON" or "ESP: OFF"
+    espBtn.BackgroundColor3 = settings.espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+local aimBtn = Instance.new("TextButton")
+aimBtn.Size = UDim2.new(1, -10, 0, 30)
+aimBtn.Position = UDim2.new(0, 5, 0, 70)
+aimBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+aimBtn.Text = "AIMBOT: ON"
+aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+aimBtn.TextScaled = true
+aimBtn.Parent = mainFrame
+aimBtn.MouseButton1Click:Connect(function()
+    settings.aimbotEnabled = not settings.aimbotEnabled
+    aimBtn.Text = settings.aimbotEnabled and "AIMBOT: ON" or "AIMBOT: OFF"
+    aimBtn.BackgroundColor3 = settings.aimbotEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
+
+-- ============================================
+-- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+-- ============================================
+local function isPlayerValid(target)
+    if not target or not target.Character or not target.Character:FindFirstChild("Humanoid") then
+        return false
+    end
+    if target == player then
+        return false
+    end
+    if target.Character.Humanoid.Health <= 0 then
+        return false
+    end
+    return true
+end
+
+local function getPlayers()
+    local list = {}
+    for _, v in ipairs(players:GetPlayers()) do
+        if isPlayerValid(v) then
+            table.insert(list, v)
+        end
+    end
+    return list
+end
+
+local function worldToScreen(point)
+    local vec, onScreen = camera:WorldToScreenPoint(point)
+    return Vector2.new(vec.X, vec.Y), onScreen
+end
+
+-- ============================================
+-- ESP ОТРИСОВКА
+-- ============================================
+local espObjects = {}
+
+local function createEspObject()
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 1, 0, 1)
+    frame.BackgroundTransparency = 1
+    frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+    return frame
+end
+
+local function drawBox(target, position, size, color)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, size.X, 0, size.Y)
+    frame.Position = UDim2.new(0, position.X - size.X / 2, 0, position.Y - size.Y / 2)
+    frame.BackgroundTransparency = 0.3
+    frame.BackgroundColor3 = color
+    frame.BorderSizePixel = 0
+    frame.Parent = target
+    return frame
+end
+
+local function drawText(target, position, text, color)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 200, 0, 16)
+    label.Position = UDim2.new(0, position.X - 100, 0, position.Y)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSans
+    label.Parent = target
+    return label
+end
+
+-- Очистка ESP объектов
+local function clearEsp()
+    for _, v in pairs(espObjects) do
+        if v and v.Parent then
+            v:Destroy()
+        end
+    end
+    espObjects = {}
+end
+
+-- ============================================
+-- ОСНОВНОЙ ЦИКЛ ESP
+-- ============================================
+runService.RenderStepped:Connect(function()
+    if not settings.espEnabled then
+        clearEsp()
+        return
+    end
+    
+    clearEsp()
+    
+    for _, target in ipairs(getPlayers()) do
+        local character = target.Character
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                local head = character:FindFirstChild("Head")
+                if head then
+                    local headPos, onScreen = worldToScreen(head.Position)
+                    local rootPos, _ = worldToScreen(rootPart.Position - Vector3.new(0, 2, 0))
+                    
+                    if onScreen then
+                        local height = (rootPos.Y - headPos.Y)
+                        local width = height / 2
+                        local color = settings.espColor
+                        
+                        -- Меняем цвет для союзников
+                        if target.Team and target.Team == player.Team then
+                            color = settings.teamColor
+                        end
+                        
+                        -- Рисуем ESP
+                        if settings.espBox then
+                            local box = drawBox(screenGui, Vector2.new(headPos.X, (headPos.Y + rootPos.Y) / 2), 
+                                Vector2.new(width, height), color)
+                            table.insert(espObjects, box)
+                        end
+                        
+                        if settings.espName then
+                            local nameLabel = drawText(screenGui, Vector2.new(headPos.X, headPos.Y - 25), 
+                                target.Name, color)
+                            table.insert(espObjects, nameLabel)
+                        end
+                        
+                        if settings.espHealth then
+                            local healthText = string.format("%.0f%%", humanoid.Health / humanoid.MaxHealth * 100)
+                            local healthLabel = drawText(screenGui, Vector2.new(headPos.X, headPos.Y + 5), 
+                                healthText, Color3.fromRGB(255, 0, 0))
+                            table.insert(espObjects, healthLabel)
+                        end
+                        
+                        if settings.espDistance then
+                            local dist = math.round((camera.CFrame.Position - rootPart.Position).Magnitude)
+                            local distLabel = drawText(screenGui, Vector2.new(headPos.X, headPos.Y + 25), 
+                                dist .. " m", Color3.fromRGB(255, 255, 255))
+                            table.insert(espObjects, distLabel)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ============================================
+-- AIMBOT
+-- ============================================
+local function getClosestPlayerToMouse()
+    local mousePos = userInputService:GetMouseLocation()
+    local closestPlayer = nil
+    local closestDistance = settings.fovRadius
+    
+    for _, target in ipairs(getPlayers()) do
+        local character = target.Character
+        if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Head") then
+            local head = character.Head
+            local headPos, onScreen = worldToScreen(head.Position)
+            
+            if onScreen then
+                local distance = (mousePos - headPos).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = target
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- Функция для наведения
+local function aimAt(target)
+    if not target or not target.Character or not target.Character:FindFirstChild("Head") then
+        return
+    end
+    
+    local head = target.Character.Head
+    local headPos = head.Position
+    local lookVector = (headPos - camera.CFrame.Position).Unit
+    
+    -- Плавное наведение
+    local newCFrame = CFrame.lookAt(camera.CFrame.Position, headPos)
+    camera.CFrame = camera.CFrame:Lerp(newCFrame, settings.smoothness)
+end
+
+-- Обработка нажатия клавиши
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == settings.aimbotKey and settings.aimbotEnabled then
+        local target = getClosestPlayerToMouse()
+        if target then
+            aimAt(target)
+        end
+    end
+end)
+
+-- ============================================
+-- ДОПОЛНИТЕЛЬНО: Авто-наведение (удерживать кнопку)
+-- ============================================
+local aimbotActive = false
+
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == settings.aimbotKey then
+        aimbotActive = true
+        while aimbotActive and settings.aimbotEnabled do
+            local target = getClosestPlayerToMouse()
+            if target then
+                aimAt(target)
+            end
+            runService.RenderStepped:Wait()
+        end
+    end
+end)
+
+userInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == settings.aimbotKey then
+        aimbotActive = false
+    end
+end)
+
+-- ============================================
+-- ОТЛАДКА
+-- ============================================
+print("ESP + Aimbot загружен!")
+print("Настройки:")
+print("  - ESP: " .. (settings.espEnabled and "ON" or "OFF"))
+print("  - Aimbot: " .. (settings.aimbotEnabled and "ON" or "OFF"))
+print("  - Кнопка Aimbot: Right Shift")
+print("  - GUI можно перетаскивать")
+print("  - Нажми F3 для открытия/закрытия меню")
+
+-- Горячая клавиша для открытия/закрытия GUI
+userInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F3 then
+        screenGui.Enabled = not screenGui.Enabled
+    end
+end)
