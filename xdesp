@@ -1,5 +1,5 @@
 -- ============================================
--- HvH CLIENT v3.0 (FULL FIXED)
+-- HvH CLIENT v3.0 (FULL FIXED) + CUSTOM CROSSHAIR
 -- XD_DEMON_HVH EDITION
 -- ВСЕ ОШИБКИ ИСПРАВЛЕНЫ
 -- ============================================
@@ -27,7 +27,7 @@ local hubStyle = {
     buttonTransparency = 0.2,
     cornerRadius = 12,
     windowWidth = 280,
-    windowHeight = 620,
+    windowHeight = 680,
     buttonHeight = 30,
     shadowSize = 20,
     shadowTransparency = 0.5,
@@ -61,6 +61,10 @@ local settings = {
     spinSpeed = 50,
     antiRecoil = false,
     fastReload = false,
+    crosshairType = "plus",
+    crosshairColor = Color3.fromRGB(255, 0, 100),
+    crosshairSize = 15,
+    crosshairEnabled = true,
 }
 
 -- ============================================
@@ -92,7 +96,7 @@ local function getPlayers()
 end
 
 -- ============================================
--- НЕВИДИМКА (ИСПРАВЛЕНА)
+-- НЕВИДИМКА
 -- ============================================
 local function setInvisible(state)
     settings.invisible = state
@@ -191,6 +195,61 @@ watermarkShadow.ZIndex = 0
 watermarkShadow.Parent = screenGui
 
 -- ============================================
+-- КАСТОМНЫЙ ПРИЦЕЛ
+-- ============================================
+local crosshairGroup = Instance.new("Frame")
+crosshairGroup.Size = UDim2.new(0, 0, 0, 0)
+crosshairGroup.Position = UDim2.new(0.5, 0, 0.5, 0)
+crosshairGroup.BackgroundTransparency = 1
+crosshairGroup.Parent = screenGui
+
+local crosshairParts = {}
+
+local function createCrosshairPart(size, position, color, transparency)
+    local part = Instance.new("Frame")
+    part.Size = UDim2.new(0, size.X, 0, size.Y)
+    part.Position = UDim2.new(0, position.X, 0, position.Y)
+    part.BackgroundColor3 = color
+    part.BackgroundTransparency = transparency or 0
+    part.BorderSizePixel = 0
+    part.Parent = crosshairGroup
+    return part
+end
+
+local function updateCrosshair()
+    for _, part in ipairs(crosshairParts) do
+        part:Destroy()
+    end
+    crosshairParts = {}
+    
+    if not settings.crosshairEnabled then return end
+    
+    local size = settings.crosshairSize
+    local color = settings.crosshairColor
+    local type = settings.crosshairType
+    
+    if type == "plus" then
+        local hLine = createCrosshairPart(Vector2.new(size * 2, 2), Vector2.new(-size, -1), color)
+        table.insert(crosshairParts, hLine)
+        local vLine = createCrosshairPart(Vector2.new(2, size * 2), Vector2.new(-1, -size), color)
+        table.insert(crosshairParts, vLine)
+        local dot = createCrosshairPart(Vector2.new(4, 4), Vector2.new(-2, -2), color)
+        table.insert(crosshairParts, dot)
+    elseif type == "dot" then
+        local dot = createCrosshairPart(Vector2.new(size, size), Vector2.new(-size/2, -size/2), color)
+        table.insert(crosshairParts, dot)
+    elseif type == "circle" then
+        for i = 0, 3 do
+            local angle = math.rad(i * 90)
+            local x = math.cos(angle) * size
+            local y = math.sin(angle) * size
+            local frame = createCrosshairPart(Vector2.new(4, 4), Vector2.new(x - 2, y - 2), color)
+            table.insert(crosshairParts, frame)
+        end
+    end
+end
+
+-- ============================================
 -- FOV КРУГ
 -- ============================================
 local fovCircle = Instance.new("Frame")
@@ -233,7 +292,6 @@ shadow.ImageTransparency = hubStyle.shadowTransparency
 shadow.ZIndex = -1
 shadow.Parent = mainFrame
 
--- Заголовок
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.BackgroundColor3 = hubStyle.headerColor
@@ -244,7 +302,6 @@ titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.Parent = mainFrame
 
--- Кнопка закрытия
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 30, 0, 30)
 closeBtn.Position = UDim2.new(1, -30, 0, 5)
@@ -294,7 +351,7 @@ end)
 -- ПЕРЕТАСКИВАНИЕ ОКНА
 -- ============================================
 local dragging = false
-local dragStartPos = Vector2.new()
+local dragStartPos = UDim2.new()
 local dragStartMousePos = Vector2.new()
 
 mainFrame.InputBegan:Connect(function(input)
@@ -315,8 +372,7 @@ runService.RenderStepped:Connect(function()
     if dragging then
         local currentMousePos = userInputService:GetMouseLocation()
         local delta = currentMousePos - dragStartMousePos
-        local newPos = dragStartPos + UDim2.new(0, delta.X, 0, delta.Y)
-        mainFrame.Position = newPos
+        mainFrame.Position = UDim2.new(dragStartPos.X.Scale, dragStartPos.X.Offset + delta.X, dragStartPos.Y.Scale, dragStartPos.Y.Offset + delta.Y)
     end
 end)
 
@@ -539,6 +595,102 @@ bodyBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================
+-- КНОПКИ НАСТРОЙКИ ПРИЦЕЛА
+-- ============================================
+yPos = yPos + 35
+
+local crosshairLabel = Instance.new("TextLabel")
+crosshairLabel.Size = UDim2.new(1, -10, 0, 20)
+crosshairLabel.Position = UDim2.new(0, 5, 0, yPos)
+crosshairLabel.BackgroundTransparency = 1
+crosshairLabel.Text = "🎯 ПРИЦЕЛ"
+crosshairLabel.TextColor3 = hubStyle.textColor
+crosshairLabel.TextScaled = true
+crosshairLabel.Font = Enum.Font.SourceSansBold
+crosshairLabel.Parent = mainFrame
+
+yPos = yPos + 22
+
+local crosshairBtn = Instance.new("TextButton")
+crosshairBtn.Size = UDim2.new(0.95, -10, 0, 25)
+crosshairBtn.Position = UDim2.new(0, 5, 0, yPos)
+crosshairBtn.BackgroundColor3 = hubStyle.buttonOnColor
+crosshairBtn.BackgroundTransparency = hubStyle.buttonTransparency
+crosshairBtn.Text = "🔴 ON"
+crosshairBtn.TextColor3 = hubStyle.textColor
+crosshairBtn.TextScaled = true
+crosshairBtn.Font = Enum.Font.SourceSansBold
+crosshairBtn.Parent = mainFrame
+
+local crosshairState = true
+crosshairBtn.MouseButton1Click:Connect(function()
+    crosshairState = not crosshairState
+    settings.crosshairEnabled = crosshairState
+    updateCrosshair()
+    crosshairBtn.Text = crosshairState and "🔴 ON" or "⚫ OFF"
+    crosshairBtn.BackgroundColor3 = crosshairState and hubStyle.buttonOnColor or hubStyle.buttonOffColor
+end)
+
+yPos = yPos + 30
+
+local plusBtn = Instance.new("TextButton")
+plusBtn.Size = UDim2.new(0.30, -5, 0, 25)
+plusBtn.Position = UDim2.new(0, 5, 0, yPos)
+plusBtn.BackgroundColor3 = settings.crosshairType == "plus" and hubStyle.buttonOnColor or Color3.fromRGB(60, 60, 60)
+plusBtn.BackgroundTransparency = hubStyle.buttonTransparency
+plusBtn.Text = "➕"
+plusBtn.TextColor3 = hubStyle.textColor
+plusBtn.TextScaled = true
+plusBtn.Font = Enum.Font.SourceSansBold
+plusBtn.Parent = mainFrame
+
+local dotBtn = Instance.new("TextButton")
+dotBtn.Size = UDim2.new(0.30, -5, 0, 25)
+dotBtn.Position = UDim2.new(0.35, 0, 0, yPos)
+dotBtn.BackgroundColor3 = settings.crosshairType == "dot" and hubStyle.buttonOnColor or Color3.fromRGB(60, 60, 60)
+dotBtn.BackgroundTransparency = hubStyle.buttonTransparency
+dotBtn.Text = "🔴"
+dotBtn.TextColor3 = hubStyle.textColor
+dotBtn.TextScaled = true
+dotBtn.Font = Enum.Font.SourceSansBold
+dotBtn.Parent = mainFrame
+
+local circleBtn = Instance.new("TextButton")
+circleBtn.Size = UDim2.new(0.30, -5, 0, 25)
+circleBtn.Position = UDim2.new(0.65, 0, 0, yPos)
+circleBtn.BackgroundColor3 = settings.crosshairType == "circle" and hubStyle.buttonOnColor or Color3.fromRGB(60, 60, 60)
+circleBtn.BackgroundTransparency = hubStyle.buttonTransparency
+circleBtn.Text = "⭕"
+circleBtn.TextColor3 = hubStyle.textColor
+circleBtn.TextScaled = true
+circleBtn.Font = Enum.Font.SourceSansBold
+circleBtn.Parent = mainFrame
+
+plusBtn.MouseButton1Click:Connect(function()
+    settings.crosshairType = "plus"
+    updateCrosshair()
+    plusBtn.BackgroundColor3 = hubStyle.buttonOnColor
+    dotBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    circleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+end)
+
+dotBtn.MouseButton1Click:Connect(function()
+    settings.crosshairType = "dot"
+    updateCrosshair()
+    dotBtn.BackgroundColor3 = hubStyle.buttonOnColor
+    plusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    circleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+end)
+
+circleBtn.MouseButton1Click:Connect(function()
+    settings.crosshairType = "circle"
+    updateCrosshair()
+    circleBtn.BackgroundColor3 = hubStyle.buttonOnColor
+    plusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    dotBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+end)
+
+-- ============================================
 -- ESP ОТРИСОВКА
 -- ============================================
 local espObjects = {}
@@ -615,131 +767,4 @@ runService.RenderStepped:Connect(function()
                         drawText(Vector2.new(headPos.X, headPos.Y + 5), hp .. "%", Color3.fromRGB(255, 0, 0))
                     end
                     if settings.espDistance then
-                        local dist = math.round((camera.CFrame.Position - root.Position).Magnitude)
-                        drawText(Vector2.new(headPos.X, headPos.Y + 25), dist .. "m", Color3.fromRGB(255, 255, 255))
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ============================================
--- AIMBOT (ИСПРАВЛЕН)
--- ============================================
-local function getClosestPlayerToMouse()
-    local mousePos = userInputService:GetMouseLocation()
-    local closest, closestDist = nil, settings.fovRadius
-    for _, target in ipairs(getPlayers()) do
-        local char = target.Character
-        if char then
-            local part = char:FindFirstChild(settings.aimPart)
-            if part then
-                local pos = worldToScreen(part.Position)
-                if pos then
-                    local dist = (mousePos - pos).Magnitude
-                    if dist < closestDist then
-                        closestDist = dist
-                        closest = target
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
-
-local function aimAt(target)
-    if not target or not target.Character then return end
-    local part = target.Character:FindFirstChild(settings.aimPart)
-    if not part then return end
-    local targetPos = part.Position
-    local newCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
-    camera.CFrame = camera.CFrame:Lerp(newCFrame, settings.smoothness)
-end
-
-local aimbotActive = false
-userInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == settings.aimbotKey and settings.aimbotEnabled then
-        aimbotActive = true
-        while aimbotActive and settings.aimbotEnabled do
-            local target = getClosestPlayerToMouse()
-            if target then aimAt(target) end
-            runService.RenderStepped:Wait()
-        end
-    end
-end)
-
-userInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == settings.aimbotKey then aimbotActive = false end
-end)
-
--- ============================================
--- ОБНОВЛЕНИЕ FOV КРУГА
--- ============================================
-runService.RenderStepped:Connect(function()
-    local size = settings.fovRadius * 2
-    fovCircle.Size = UDim2.new(0, size, 0, size)
-    fovCircle.Position = UDim2.new(0.5, -size/2, 0.5, -size/2)
-end)
-
--- ============================================
--- SPINBOT
--- ============================================
-runService.RenderStepped:Connect(function()
-    if not settings.spinBot then return end
-    local char = player.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(settings.spinSpeed), 0)
-end)
-
--- ============================================
--- ANTIRECOIL
--- ============================================
-runService.RenderStepped:Connect(function()
-    if not settings.antiRecoil then return end
-    local char = player.Character
-    if not char then return end
-    local activeTool = char:FindFirstChild("ActiveTool")
-    if activeTool then
-        for _, part in ipairs(activeTool:GetDescendants()) do
-            if part:IsA("NumberValue") and part.Name == "Recoil" then
-                part.Value = 0
-            end
-        end
-    end
-end)
-
--- ============================================
--- FAST RELOAD
--- ============================================
-runService.RenderStepped:Connect(function()
-    if not settings.fastReload then return end
-    local char = player.Character
-    if not char then return end
-    local activeTool = char:FindFirstChild("ActiveTool")
-    if activeTool then
-        for _, part in ipairs(activeTool:GetDescendants()) do
-            if part:IsA("NumberValue") and part.Name == "ReloadTime" then
-                part.Value = 0.1
-            end
-        end
-    end
-end)
-
--- ============================================
--- ГОРЯЧИЕ КЛАВИШИ
--- ============================================
-userInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.F3 then
-        settings.hubOpen = not settings.hubOpen
-        mainFrame.Visible = settings.hubOpen
-        blurEffect.Enabled = settings.hubOpen
-    end
-end)
-
-print("🔥 XD_DEMON_HVH CLIENT v3.0 ЗАГРУЖЕН!")
-print("🎮 F3 - меню | RightShift - аим | SPIN - крутилка | NO RECOIL - без отдачи")
+                        local dist = math.round((camera.CFrame.Position - root.Position).Magnitude
