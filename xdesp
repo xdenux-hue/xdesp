@@ -99,7 +99,6 @@ local function setInvisible(state)
     local character = player.Character
     if not character then return end
     
-    -- Скрываем все части тела
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Transparency = state and 1 or 0
@@ -113,14 +112,12 @@ local function setInvisible(state)
         end
     end
     
-    -- Скрываем одежду и аксессуары
     for _, child in ipairs(character:GetChildren()) do
         if child:IsA("Shirt") or child:IsA("Pants") or child:IsA("Accessory") or child:IsA("Clothing") or child:IsA("Hat") then
             child.Transparency = state and 1 or 0
         end
     end
     
-    -- Скрываем все части модели через Humanoid
     local humanoid = character:FindFirstChild("Humanoid")
     if humanoid then
         for _, bodyPart in ipairs(humanoid:GetDescendants()) do
@@ -154,24 +151,21 @@ local function toggleFastReload(state)
 end
 
 -- ============================================
--- ОТРИСОВКА FOV (ВИДИМЫЙ КРУГ)
+-- СОЗДАНИЕ GUI
 -- ============================================
-local fovCircle = Instance.new("Frame")
-fovCircle.Size = UDim2.new(0, 0, 0, 0)
-fovCircle.Position = UDim2.new(0.5, -150, 0.5, -150)
-fovCircle.BackgroundTransparency = 1
-fovCircle.BorderSizePixel = 1
-fovCircle.BorderColor3 = Color3.fromRGB(255, 0, 100)
-fovCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 100)
-fovCircle.BackgroundTransparency = 0.8
-fovCircle.Parent = screenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HvH_Client"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player.PlayerGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local fovCircleCorner = Instance.new("UICorner")
-fovCircleCorner.CornerRadius = UDim.new(1, 0)
-fovCircleCorner.Parent = fovCircle
+local blurEffect = Instance.new("BlurEffect")
+blurEffect.Size = hubStyle.blurAmount
+blurEffect.Enabled = false
+blurEffect.Parent = screenGui
 
 -- ============================================
--- WATERMARK (ИСПРАВЛЕН)
+-- WATERMARK
 -- ============================================
 local watermark = Instance.new("TextLabel")
 watermark.Size = UDim2.new(0, 280, 0, 30)
@@ -197,19 +191,25 @@ watermarkShadow.ZIndex = 0
 watermarkShadow.Parent = screenGui
 
 -- ============================================
--- СОЗДАНИЕ GUI
+-- FOV КРУГ
 -- ============================================
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "HvH_Client"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player.PlayerGui
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local fovCircle = Instance.new("Frame")
+fovCircle.Size = UDim2.new(0, 0, 0, 0)
+fovCircle.Position = UDim2.new(0.5, -150, 0.5, -150)
+fovCircle.BackgroundTransparency = 1
+fovCircle.BorderSizePixel = 2
+fovCircle.BorderColor3 = Color3.fromRGB(255, 0, 100)
+fovCircle.BackgroundColor3 = Color3.fromRGB(255, 0, 100)
+fovCircle.BackgroundTransparency = 0.85
+fovCircle.Parent = screenGui
 
-local blurEffect = Instance.new("BlurEffect")
-blurEffect.Size = hubStyle.blurAmount
-blurEffect.Enabled = false
-blurEffect.Parent = screenGui
+local fovCircleCorner = Instance.new("UICorner")
+fovCircleCorner.CornerRadius = UDim.new(1, 0)
+fovCircleCorner.Parent = fovCircle
 
+-- ============================================
+-- ГЛАВНОЕ ОКНО
+-- ============================================
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, hubStyle.windowWidth, 0, hubStyle.windowHeight)
 mainFrame.Position = UDim2.new(0.5, -hubStyle.windowWidth/2, 0.5, -hubStyle.windowHeight/2)
@@ -232,34 +232,6 @@ shadow.Image = "rbxassetid://1316046045"
 shadow.ImageTransparency = hubStyle.shadowTransparency
 shadow.ZIndex = -1
 shadow.Parent = mainFrame
-
--- Перетаскивание окна
-local dragging = false
-local dragStartPos = Vector2.new()
-local dragStartMousePos = Vector2.new()
-
-mainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStartPos = mainFrame.Position
-        dragStartMousePos = userInputService:GetMouseLocation()
-    end
-end)
-
-userInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-runService.RenderStepped:Connect(function()
-    if dragging then
-        local currentMousePos = userInputService:GetMouseLocation()
-        local delta = currentMousePos - dragStartMousePos
-        local newPos = dragStartPos + UDim2.new(0, delta.X, 0, delta.Y)
-        mainFrame.Position = newPos
-    end
-end)
 
 -- Заголовок
 local titleLabel = Instance.new("TextLabel")
@@ -294,7 +266,9 @@ closeBtn.MouseButton1Click:Connect(function()
     blurEffect.Enabled = false
 end)
 
+-- ============================================
 -- КНОПКА ОТКРЫТИЯ
+-- ============================================
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, hubStyle.toggleBtnSize, 0, hubStyle.toggleBtnSize)
 toggleBtn.Position = UDim2.new(1, -(hubStyle.toggleBtnSize + 10), 0, 10)
@@ -312,17 +286,260 @@ toggleCorner.Parent = toggleBtn
 
 toggleBtn.MouseButton1Click:Connect(function()
     settings.hubOpen = not settings.hubOpen
-    if settings.hubOpen then
-        mainFrame.Visible = true
-        blurEffect.Enabled = true
-    else
-        blurEffect.Enabled = false
-        mainFrame.Visible = false
+    mainFrame.Visible = settings.hubOpen
+    blurEffect.Enabled = settings.hubOpen
+end)
+
+-- ============================================
+-- ПЕРЕТАСКИВАНИЕ ОКНА
+-- ============================================
+local dragging = false
+local dragStartPos = Vector2.new()
+local dragStartMousePos = Vector2.new()
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and input.Position.Y <= 40 then
+        dragging = true
+        dragStartPos = mainFrame.Position
+        dragStartMousePos = userInputService:GetMouseLocation()
+    end
+end)
+
+userInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+runService.RenderStepped:Connect(function()
+    if dragging then
+        local currentMousePos = userInputService:GetMouseLocation()
+        local delta = currentMousePos - dragStartMousePos
+        local newPos = dragStartPos + UDim2.new(0, delta.X, 0, delta.Y)
+        mainFrame.Position = newPos
     end
 end)
 
 -- ============================================
--- ОТРИСОВКА ESP
+-- КНОПКИ УПРАВЛЕНИЯ
+-- ============================================
+local yPos = 70
+
+local function createButton(text, callback, isToggle, initialState)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
+    btn.Position = UDim2.new(0, 5, 0, yPos)
+    btn.BackgroundColor3 = (isToggle and initialState) and hubStyle.buttonOnColor or hubStyle.buttonOffColor
+    btn.BackgroundTransparency = hubStyle.buttonTransparency
+    btn.Text = text
+    btn.TextColor3 = hubStyle.textColor
+    btn.TextScaled = true
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Parent = mainFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = btn
+    
+    local state = initialState
+    btn.MouseButton1Click:Connect(function()
+        if isToggle then
+            state = not state
+            btn.BackgroundColor3 = state and hubStyle.buttonOnColor or hubStyle.buttonOffColor
+        end
+        callback(state)
+    end)
+    
+    yPos = yPos + hubStyle.buttonHeight + 5
+    return btn
+end
+
+createButton("ESP: ON", function(s) settings.espEnabled = s end, true, true)
+createButton("AIM: ON", function(s) settings.aimbotEnabled = s end, true, true)
+
+-- НЕВИДИМКА
+local invisBtn = Instance.new("TextButton")
+invisBtn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
+invisBtn.Position = UDim2.new(0.55, 0, 0, yPos - hubStyle.buttonHeight - 5)
+invisBtn.BackgroundColor3 = hubStyle.buttonOffColor
+invisBtn.BackgroundTransparency = hubStyle.buttonTransparency
+invisBtn.Text = "👻 INVIS"
+invisBtn.TextColor3 = hubStyle.textColor
+invisBtn.TextScaled = true
+invisBtn.Font = Enum.Font.SourceSansBold
+invisBtn.Parent = mainFrame
+
+local invisCorner = Instance.new("UICorner")
+invisCorner.CornerRadius = UDim.new(0, 8)
+invisCorner.Parent = invisBtn
+
+local invisState = false
+invisBtn.MouseButton1Click:Connect(function()
+    invisState = not invisState
+    setInvisible(invisState)
+    invisBtn.BackgroundColor3 = invisState and hubStyle.buttonOnColor or hubStyle.buttonOffColor
+end)
+
+yPos = yPos + 10
+
+-- SPIN
+local spinBtn = Instance.new("TextButton")
+spinBtn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
+spinBtn.Position = UDim2.new(0, 5, 0, yPos)
+spinBtn.BackgroundColor3 = hubStyle.buttonOffColor
+spinBtn.BackgroundTransparency = hubStyle.buttonTransparency
+spinBtn.Text = "🔄 SPIN"
+spinBtn.TextColor3 = hubStyle.textColor
+spinBtn.TextScaled = true
+spinBtn.Font = Enum.Font.SourceSansBold
+spinBtn.Parent = mainFrame
+
+local spinState = false
+spinBtn.MouseButton1Click:Connect(function()
+    spinState = not spinState
+    toggleSpin(spinState)
+    spinBtn.BackgroundColor3 = spinState and hubStyle.buttonOnColor or hubStyle.buttonOffColor
+end)
+
+-- NO RECOIL
+local recoilBtn = Instance.new("TextButton")
+recoilBtn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
+recoilBtn.Position = UDim2.new(0.55, 0, 0, yPos)
+recoilBtn.BackgroundColor3 = hubStyle.buttonOffColor
+recoilBtn.BackgroundTransparency = hubStyle.buttonTransparency
+recoilBtn.Text = "🎯 NO RECOIL"
+recoilBtn.TextColor3 = hubStyle.textColor
+recoilBtn.TextScaled = true
+recoilBtn.Font = Enum.Font.SourceSansBold
+recoilBtn.Parent = mainFrame
+
+local recoilState = false
+recoilBtn.MouseButton1Click:Connect(function()
+    recoilState = not recoilState
+    toggleAntiRecoil(recoilState)
+    recoilBtn.BackgroundColor3 = recoilState and hubStyle.buttonOnColor or hubStyle.buttonOffColor
+end)
+
+yPos = yPos + hubStyle.buttonHeight + 10
+
+-- ============================================
+-- ПОЛЗУНОК FOV
+-- ============================================
+local fovLabel = Instance.new("TextLabel")
+fovLabel.Size = UDim2.new(1, -10, 0, 20)
+fovLabel.Position = UDim2.new(0, 5, 0, yPos)
+fovLabel.BackgroundTransparency = 1
+fovLabel.Text = "FOV: " .. settings.fovRadius
+fovLabel.TextColor3 = hubStyle.textColor
+fovLabel.TextScaled = true
+fovLabel.Font = Enum.Font.SourceSans
+fovLabel.Parent = mainFrame
+
+yPos = yPos + 22
+
+local fovSlider = Instance.new("Frame")
+fovSlider.Size = UDim2.new(1, -10, 0, 10)
+fovSlider.Position = UDim2.new(0, 5, 0, yPos)
+fovSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+fovSlider.BorderSizePixel = 0
+fovSlider.Parent = mainFrame
+
+local fovFill = Instance.new("Frame")
+fovFill.Size = UDim2.new((settings.fovRadius / 500), 0, 1, 0)
+fovFill.BackgroundColor3 = hubStyle.accentColor
+fovFill.BorderSizePixel = 0
+fovFill.Parent = fovSlider
+
+local fovDragger = Instance.new("TextButton")
+fovDragger.Size = UDim2.new(0, 20, 0, 20)
+fovDragger.Position = UDim2.new((settings.fovRadius / 500), -10, 0.5, -10)
+fovDragger.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+fovDragger.BackgroundTransparency = 0.5
+fovDragger.Text = ""
+fovDragger.BorderSizePixel = 1
+fovDragger.Parent = fovSlider
+
+local fovDragging = false
+fovDragger.MouseButton1Down:Connect(function()
+    fovDragging = true
+end)
+
+userInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        fovDragging = false
+    end
+end)
+
+runService.RenderStepped:Connect(function()
+    if fovDragging then
+        local mousePos = userInputService:GetMouseLocation()
+        local absPos = fovSlider.AbsolutePosition
+        local size = fovSlider.AbsoluteSize.X
+        if size > 0 then
+            local percent = math.clamp((mousePos.X - absPos.X) / size, 0, 1)
+            settings.fovRadius = math.floor(percent * 500 + 10)
+            fovFill.Size = UDim2.new(percent, 0, 1, 0)
+            fovDragger.Position = UDim2.new(percent, -10, 0.5, -10)
+            fovLabel.Text = "FOV: " .. settings.fovRadius
+        end
+    end
+end)
+
+-- ============================================
+-- КНОПКИ ВЫБОРА ЦЕЛИ
+-- ============================================
+yPos = yPos + 30
+
+local aimPartLabel = Instance.new("TextLabel")
+aimPartLabel.Size = UDim2.new(1, -10, 0, 20)
+aimPartLabel.Position = UDim2.new(0, 5, 0, yPos)
+aimPartLabel.BackgroundTransparency = 1
+aimPartLabel.Text = "Цель: " .. settings.aimPart
+aimPartLabel.TextColor3 = hubStyle.textColor
+aimPartLabel.TextScaled = true
+aimPartLabel.Font = Enum.Font.SourceSans
+aimPartLabel.Parent = mainFrame
+
+yPos = yPos + 22
+
+local headBtn = Instance.new("TextButton")
+headBtn.Size = UDim2.new(0.45, -5, 0, 25)
+headBtn.Position = UDim2.new(0, 5, 0, yPos)
+headBtn.BackgroundColor3 = settings.aimPart == "Head" and hubStyle.buttonOnColor or Color3.fromRGB(60, 60, 60)
+headBtn.BackgroundTransparency = hubStyle.buttonTransparency
+headBtn.Text = "ГОЛОВА"
+headBtn.TextColor3 = hubStyle.textColor
+headBtn.TextScaled = true
+headBtn.Font = Enum.Font.SourceSansBold
+headBtn.Parent = mainFrame
+
+local bodyBtn = Instance.new("TextButton")
+bodyBtn.Size = UDim2.new(0.45, -5, 0, 25)
+bodyBtn.Position = UDim2.new(0.55, 0, 0, yPos)
+bodyBtn.BackgroundColor3 = settings.aimPart == "HumanoidRootPart" and hubStyle.buttonOnColor or Color3.fromRGB(60, 60, 60)
+bodyBtn.BackgroundTransparency = hubStyle.buttonTransparency
+bodyBtn.Text = "ТУЛОВИЩЕ"
+bodyBtn.TextColor3 = hubStyle.textColor
+bodyBtn.TextScaled = true
+bodyBtn.Font = Enum.Font.SourceSansBold
+bodyBtn.Parent = mainFrame
+
+headBtn.MouseButton1Click:Connect(function()
+    settings.aimPart = "Head"
+    aimPartLabel.Text = "Цель: Head"
+    headBtn.BackgroundColor3 = hubStyle.buttonOnColor
+    bodyBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+end)
+
+bodyBtn.MouseButton1Click:Connect(function()
+    settings.aimPart = "HumanoidRootPart"
+    aimPartLabel.Text = "Цель: Body"
+    bodyBtn.BackgroundColor3 = hubStyle.buttonOnColor
+    headBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+end)
+
+-- ============================================
+-- ESP ОТРИСОВКА
 -- ============================================
 local espObjects = {}
 
@@ -362,7 +579,7 @@ end
 local function worldToScreen(point)
     local vec, onScreen = camera:WorldToScreenPoint(point)
     if not onScreen then return nil end
-    return Vector2.new(vec.X, vec.Y), onScreen
+    return Vector2.new(vec.X, vec.Y)
 end
 
 runService.RenderStepped:Connect(function()
@@ -376,9 +593,9 @@ runService.RenderStepped:Connect(function()
             local head = char:FindFirstChild("Head")
             local humanoid = char:FindFirstChild("Humanoid")
             if root and head and humanoid and humanoid.Health > 0 then
-                local headPos, onScreen = worldToScreen(head.Position)
-                local rootPos, _ = worldToScreen(root.Position - Vector3.new(0, 2, 0))
-                if onScreen then
+                local headPos = worldToScreen(head.Position)
+                local rootPos = worldToScreen(root.Position - Vector3.new(0, 2, 0))
+                if headPos and rootPos then
                     local height = (rootPos.Y - headPos.Y)
                     local width = height / 2
                     local color = settings.espColor
@@ -418,8 +635,8 @@ local function getClosestPlayerToMouse()
         if char then
             local part = char:FindFirstChild(settings.aimPart)
             if part then
-                local pos, onScreen = worldToScreen(part.Position)
-                if onScreen then
+                local pos = worldToScreen(part.Position)
+                if pos then
                     local dist = (mousePos - pos).Magnitude
                     if dist < closestDist then
                         closestDist = dist
@@ -497,160 +714,18 @@ runService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- ОСТАЛЬНЫЕ КНОПКИ HUB
+-- FAST RELOAD
 -- ============================================
-local yPos = 70
-
-local function createButton(text, callback, isToggle, initialState)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
-    btn.Position = UDim2.new(0, 5, 0, yPos)
-    btn.BackgroundColor3 = (isToggle and initialState) and hubStyle.buttonOnColor or hubStyle.buttonOffColor
-    btn.BackgroundTransparency = hubStyle.buttonTransparency
-    btn.Text = text
-    btn.TextColor3 = hubStyle.textColor
-    btn.TextScaled = true
-    btn.Font = Enum.Font.SourceSansBold
-    btn.Parent = mainFrame
-    
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 8)
-    btnCorner.Parent = btn
-    
-    local state = initialState
-    btn.MouseButton1Click:Connect(function()
-        if isToggle then
-            state = not state
-            btn.BackgroundColor3 = state and hubStyle.buttonOnColor or hubStyle.buttonOffColor
-        end
-        callback(state)
-    end)
-    
-    yPos = yPos + hubStyle.buttonHeight + 5
-    return btn
-end
-
-createButton("ESP: ON", function(s) settings.espEnabled = s end, true, true)
-createButton("AIM: ON", function(s) settings.aimbotEnabled = s end, true, true)
-
-local invisBtn = Instance.new("TextButton")
-invisBtn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
-invisBtn.Position = UDim2.new(0.55, 0, 0, yPos - hubStyle.buttonHeight - 5)
-invisBtn.BackgroundColor3 = hubStyle.buttonOffColor
-invisBtn.BackgroundTransparency = hubStyle.buttonTransparency
-invisBtn.Text = "👻 INVIS"
-invisBtn.TextColor3 = hubStyle.textColor
-invisBtn.TextScaled = true
-invisBtn.Font = Enum.Font.SourceSansBold
-invisBtn.Parent = mainFrame
-
-local invisCorner = Instance.new("UICorner")
-invisCorner.CornerRadius = UDim.new(0, 8)
-invisCorner.Parent = invisBtn
-
-local invisState = false
-invisBtn.MouseButton1Click:Connect(function()
-    invisState = not invisState
-    setInvisible(invisState)
-    invisBtn.BackgroundColor3 = invisState and hubStyle.buttonOnColor or hubStyle.buttonOffColor
-end)
-
-yPos = yPos + 10
-
-local spinBtn = Instance.new("TextButton")
-spinBtn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
-spinBtn.Position = UDim2.new(0, 5, 0, yPos)
-spinBtn.BackgroundColor3 = hubStyle.buttonOffColor
-spinBtn.BackgroundTransparency = hubStyle.buttonTransparency
-spinBtn.Text = "🔄 SPIN"
-spinBtn.TextColor3 = hubStyle.textColor
-spinBtn.TextScaled = true
-spinBtn.Font = Enum.Font.SourceSansBold
-spinBtn.Parent = mainFrame
-
-local spinState = false
-spinBtn.MouseButton1Click:Connect(function()
-    spinState = not spinState
-    toggleSpin(spinState)
-    spinBtn.BackgroundColor3 = spinState and hubStyle.buttonOnColor or hubStyle.buttonOffColor
-end)
-
-local recoilBtn = Instance.new("TextButton")
-recoilBtn.Size = UDim2.new(0.45, -5, 0, hubStyle.buttonHeight)
-recoilBtn.Position = UDim2.new(0.55, 0, 0, yPos)
-recoilBtn.BackgroundColor3 = hubStyle.buttonOffColor
-recoilBtn.BackgroundTransparency = hubStyle.buttonTransparency
-recoilBtn.Text = "🎯 NO RECOIL"
-recoilBtn.TextColor3 = hubStyle.textColor
-recoilBtn.TextScaled = true
-recoilBtn.Font = Enum.Font.SourceSansBold
-recoilBtn.Parent = mainFrame
-
-local recoilState = false
-recoilBtn.MouseButton1Click:Connect(function()
-    recoilState = not recoilState
-    toggleAntiRecoil(recoilState)
-    recoilBtn.BackgroundColor3 = recoilState and hubStyle.buttonOnColor or hubStyle.buttonOffColor
-end)
-
-yPos = yPos + hubStyle.buttonHeight + 10
-
-local fovLabel = Instance.new("TextLabel")
-fovLabel.Size = UDim2.new(1, -10, 0, 20)
-fovLabel.Position = UDim2.new(0, 5, 0, yPos)
-fovLabel.BackgroundTransparency = 1
-fovLabel.Text = "FOV: " .. settings.fovRadius
-fovLabel.TextColor3 = hubStyle.textColor
-fovLabel.TextScaled = true
-fovLabel.Font = Enum.Font.SourceSans
-fovLabel.Parent = mainFrame
-
-yPos = yPos + 22
-
-local fovSlider = Instance.new("Frame")
-fovSlider.Size = UDim2.new(1, -10, 0, 10)
-fovSlider.Position = UDim2.new(0, 5, 0, yPos)
-fovSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-fovSlider.BorderSizePixel = 0
-fovSlider.Parent = mainFrame
-
-local fovFill = Instance.new("Frame")
-fovFill.Size = UDim2.new((settings.fovRadius / 500), 0, 1, 0)
-fovFill.BackgroundColor3 = hubStyle.accentColor
-fovFill.BorderSizePixel = 0
-fovFill.Parent = fovSlider
-
-local fovDragger = Instance.new("TextButton")
-fovDragger.Size = UDim2.new(0, 20, 0, 20)
-fovDragger.Position = UDim2.new((settings.fovRadius / 500), -10, 0.5, -10)
-fovDragger.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-fovDragger.BackgroundTransparency = 0.5
-fovDragger.Text = ""
-fovDragger.BorderSizePixel = 1
-fovDragger.Parent = fovSlider
-
-local fovDragging = false
-fovDragger.MouseButton1Down:Connect(function()
-    fovDragging = true
-end)
-
-userInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        fovDragging = false
-    end
-end)
-
 runService.RenderStepped:Connect(function()
-    if fovDragging then
-        local mousePos = userInputService:GetMouseLocation()
-        local absPos = fovSlider.AbsolutePosition
-        local size = fovSlider.AbsoluteSize.X
-        if size > 0 then
-            local percent = math.clamp((mousePos.X - absPos.X) / size, 0, 1)
-            settings.fovRadius = math.floor(percent * 500 + 10)
-            fovFill.Size = UDim2.new(percent, 0, 1, 0)
-            fovDragger.Position = UDim2.new(percent, -10, 0.5, -10)
-            fovLabel.Text = "FOV: " .. settings.fovRadius
+    if not settings.fastReload then return end
+    local char = player.Character
+    if not char then return end
+    local activeTool = char:FindFirstChild("ActiveTool")
+    if activeTool then
+        for _, part in ipairs(activeTool:GetDescendants()) do
+            if part:IsA("NumberValue") and part.Name == "ReloadTime" then
+                part.Value = 0.1
+            end
         end
     end
 end)
